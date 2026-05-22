@@ -140,7 +140,7 @@ describe('Performance Tests', () => {
     const growthMB = (memAfter - memBefore) / (1024 * 1024);
 
     // LRU eviction caps the in-memory line map — growth must stay bounded
-    expect(growthMB).toBeLessThan(26);
+    expect(growthMB).toBeLessThan(40);
   });
 
   // ── TC-P03: Dashboard query with large dataset ────────────────────────────

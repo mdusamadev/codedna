@@ -438,4 +438,100 @@ describe('Classifier', () => {
     expect(result?.classification).toBe('ai_generated');
     expect(result?.sourceHint).toBe('cursor');
   });
+
+  // ── Problem 1: empty-line provenance fix ──────────────────────────────────
+
+  it('TC-EMPTY01: blank lines in an AI block are NOT marked ai_generated in lineMap', () => {
+    lastKeystrokeTs = 0;
+    aiActive = false;
+    // AI inserts 6 lines (offsets 0-5).  Offsets 1 and 4 are blank.
+    const aiEvent: RawEditEvent = {
+      timestamp: 3000,
+      filePath: 'src/empty.ts',
+      lineStart: 10,
+      lineEnd: 15,
+      charsAdded: 80,
+      charsRemoved: 0,
+      linesAdded: 5,
+      language: 'typescript',
+      isFromDisk: false,
+      nonEmptyLineOffsets: [0, 2, 3, 5], // offsets 1 and 4 are blank
+    };
+    classifier.classify(aiEvent);
+
+    // Non-empty lines should be ai_generated
+    expect(classifier.getLineClassification('src/empty.ts', 10)?.classification).toBe('ai_generated'); // offset 0
+    expect(classifier.getLineClassification('src/empty.ts', 12)?.classification).toBe('ai_generated'); // offset 2
+    expect(classifier.getLineClassification('src/empty.ts', 13)?.classification).toBe('ai_generated'); // offset 3
+    expect(classifier.getLineClassification('src/empty.ts', 15)?.classification).toBe('ai_generated'); // offset 5
+
+    // Blank lines (offsets 1 and 4) must be UNTRACKED
+    expect(classifier.getLineClassification('src/empty.ts', 11)).toBeNull(); // offset 1 blank
+    expect(classifier.getLineClassification('src/empty.ts', 14)).toBeNull(); // offset 4 blank
+  });
+
+  it('TC-EMPTY02: human writes on an untracked (blank) line → classified as human, not ai_modified', () => {
+    lastKeystrokeTs = 0;
+    aiActive = false;
+
+    // AI inserts 3 lines; offset 1 is blank (untracked)
+    classifier.classify({
+      timestamp: 3000,
+      filePath: 'src/empty2.ts',
+      lineStart: 5,
+      lineEnd: 7,
+      charsAdded: 60,
+      charsRemoved: 0,
+      linesAdded: 2,
+      language: 'typescript',
+      isFromDisk: false,
+      nonEmptyLineOffsets: [0, 2], // offset 1 (line 6) is blank
+    });
+
+    expect(classifier.getLineClassification('src/empty2.ts', 6)).toBeNull(); // line 6 untracked
+
+    // Human writes on the blank line
+    lastKeystrokeTs = 4950;
+    classifier.classify({
+      timestamp: 5000,
+      filePath: 'src/empty2.ts',
+      lineStart: 6,
+      lineEnd: 6,
+      charsAdded: 4,
+      charsRemoved: 0,
+      linesAdded: 0,
+      language: 'typescript',
+      isFromDisk: false,
+      nonEmptyLineOffsets: [0],
+    });
+
+    // Was untracked → now human (NOT ai_modified)
+    expect(classifier.getLineClassification('src/empty2.ts', 6)?.classification).toBe('human');
+  });
+
+  it('TC-EMPTY03: absent nonEmptyLineOffsets → backward compat, all lines tracked', () => {
+    lastKeystrokeTs = 0;
+    aiActive = false;
+
+    // No nonEmptyLineOffsets field (legacy event).
+    // linesAdded=3 so isBatchInsert fires and we get ai_generated (not ambiguous).
+    classifier.classify({
+      timestamp: 3000,
+      filePath: 'src/legacy.ts',
+      lineStart: 0,
+      lineEnd: 3,
+      charsAdded: 60,
+      charsRemoved: 0,
+      linesAdded: 3,
+      language: 'typescript',
+      isFromDisk: false,
+      // nonEmptyLineOffsets intentionally absent → backward compat: treat all lines as content
+    });
+
+    // All lines 0–3 should be tracked as ai_generated (old behaviour)
+    expect(classifier.getLineClassification('src/legacy.ts', 0)?.classification).toBe('ai_generated');
+    expect(classifier.getLineClassification('src/legacy.ts', 1)?.classification).toBe('ai_generated');
+    expect(classifier.getLineClassification('src/legacy.ts', 2)?.classification).toBe('ai_generated');
+    expect(classifier.getLineClassification('src/legacy.ts', 3)?.classification).toBe('ai_generated');
+  });
 });

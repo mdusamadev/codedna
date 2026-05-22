@@ -20,6 +20,23 @@ export interface RawEditEvent {
   readonly linesAdded: number;
   readonly language: string;
   readonly isFromDisk: boolean;
+  /**
+   * 0-based offsets (relative to lineStart) of lines that have non-whitespace
+   * content in the inserted text.  Empty / whitespace-only lines are absent so
+   * the classifier will leave them untracked rather than marking them ai_generated.
+   *
+   * If omitted (legacy / test events), all lines in the range are assumed to
+   * have content — preserving backward compatibility.
+   */
+  readonly nonEmptyLineOffsets?: readonly number[];
+  /**
+   * Characters added that contribute to "real code" — excludes lines that are
+   * whitespace-only, comment-only, or bracket-only.  Used for the status bar
+   * and dashboard ratio instead of the raw charsAdded count.
+   *
+   * If omitted, falls back to charsAdded for backward compatibility.
+   */
+  readonly meaningfulCharsAdded?: number;
 }
 
 /** Classified edit event ready for storage */

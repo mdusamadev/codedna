@@ -5,6 +5,7 @@ import { TRACKABLE_SCHEMES } from '../utils/constants';
 import { resolveTrackablePath, isExcludedPath } from '../utils/paths';
 import type { RawEditEvent } from '../utils/types';
 import { normalizeLineSpan } from '../utils/edit-span';
+import { analyzeInsertedText } from '../utils/text-analysis';
 
 /**
  * Captures all text document changes and keyboard activity in the editor.
@@ -125,8 +126,16 @@ export class EventListener implements vscode.Disposable {
         lineEnd: change.range.end.line,
         linesAdded,
       }).lineEnd;
+
+      // Analyse the inserted text for content-quality metadata.
+      // This is the ONLY place raw text is inspected; no content is stored.
+      const { nonEmptyLineOffsets, meaningfulCharsAdded } = analyzeInsertedText(
+        change.text,
+        event.document.languageId,
+      );
+
       const rawEvent: RawEditEvent = {
-        timestamp: Date.now(), // epoch ms — consistent with DB queries and keystroke tracking
+        timestamp: Date.now(),
         filePath,
         lineStart,
         lineEnd,
@@ -134,7 +143,9 @@ export class EventListener implements vscode.Disposable {
         charsRemoved: change.rangeLength,
         linesAdded,
         language: event.document.languageId,
-        isFromDisk: false, // Will be set by file-watcher for external changes
+        isFromDisk: false,
+        nonEmptyLineOffsets,
+        meaningfulCharsAdded,
       };
 
       this.onEditEmitter.fire(rawEvent);

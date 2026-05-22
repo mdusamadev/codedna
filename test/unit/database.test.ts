@@ -44,17 +44,17 @@ describe('Database', () => {
 
   // ── TC-DB01: Fresh database initialization ────────────────────────────────
 
-  it('TC-DB01: Fresh database creates all tables and sets schema_version = 1', () => {
-    expect(db.getSchemaVersion()).toBe(1);
+  it('TC-DB01: Fresh database creates all tables and sets schema_version = 2', () => {
+    expect(db.getSchemaVersion()).toBe(2);
     // Confirm edit_events, line_provenance tables exist by doing round-trip ops
     expect(() => db.insertEditEvents([])).not.toThrow();
     expect(() => db.upsertLineProvenance([])).not.toThrow();
     expect(db.getEventCount()).toBe(0);
   });
 
-  // ── TC-DB02: Migration from v0 to v1 ─────────────────────────────────────
+  // ── TC-DB02: Migration from v0 to v2 ─────────────────────────────────────
 
-  it('TC-DB02: Migration from v0 to v1 — blank DB gains all tables and schema_version = 1', () => {
+  it('TC-DB02: Migration from v0 to v2 — blank DB gains all tables and schema_version = 2', () => {
     // Simulate a v0 database by opening a fresh in-memory DB WITHOUT calling
     // runMigrations first, then invoking runMigrations manually.
     // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -71,11 +71,11 @@ describe('Database', () => {
     // Run migration
     runMigrations(rawDb);
 
-    // schema_version should now be 1 and all tables should exist
+    // schema_version should now be 2 and all tables should exist
     const versionRow = rawDb
       .prepare<[string], { value: string }>('SELECT value FROM metadata WHERE key = ?')
       .get('schema_version') as { value: string } | undefined;
-    expect(versionRow?.value).toBe('1');
+    expect(versionRow?.value).toBe('2');
 
     const tableNames = rawDb
       .prepare<[], { name: string }>("SELECT name FROM sqlite_master WHERE type='table'")
@@ -441,7 +441,7 @@ describe('Database', () => {
     expect(db.getEventCount()).toBe(3);
     db.resetAllData();
     expect(db.getEventCount()).toBe(0);
-    expect(db.getSchemaVersion()).toBe(1); // schema still valid after reset
+    expect(db.getSchemaVersion()).toBe(2); // schema still valid after reset
   });
 
   it('TC-DB-EDGE04: getEventCount returns 0 after close', () => {

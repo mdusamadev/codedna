@@ -95,10 +95,12 @@ export class Database {
     const insert = this.db.prepare(`
       INSERT INTO edit_events
         (timestamp, session_id, file_path, line_start, line_end,
-         chars_added, chars_removed, classification, confidence, source_hint, language)
+         chars_added, chars_removed, classification, confidence, source_hint, language,
+         meaningful_chars_added)
       VALUES
         (@timestamp, @sessionId, @filePath, @lineStart, @lineEnd,
-         @charsAdded, @charsRemoved, @classification, @confidence, @sourceHint, @language)
+         @charsAdded, @charsRemoved, @classification, @confidence, @sourceHint, @language,
+         @meaningfulCharsAdded)
     `);
 
     const run = this.db.transaction((evts: readonly ClassifiedEditEvent[]) => {
@@ -116,6 +118,7 @@ export class Database {
           confidence: e.confidence,
           sourceHint: e.sourceHint,
           language: e.language,
+          meaningfulCharsAdded: e.meaningfulCharsAdded ?? e.charsAdded,
         });
       }
     });
@@ -349,10 +352,13 @@ export class Database {
       };
     });
 
-    // ── Step 4: most productive hour (by distinct human-edited lines) ──────────
+    // ── Step 4: most productive hour in LOCAL time ────────────────────────────
+    // Shift timestamps by the local UTC offset before computing the hour bucket
+    // so the result reflects the user's clock, not UTC.
+    const tz = this.tzOffsetMs();
     const hourRow = this.db
       .prepare(`
-        SELECT (timestamp / 3600000 % 24) AS hour, COUNT(DISTINCT line_start) AS n
+        SELECT ((timestamp - ${tz}) / 3600000 % 24) AS hour, COUNT(DISTINCT line_start) AS n
         FROM edit_events
         WHERE timestamp >= ? AND timestamp <= ? AND classification = 'human'
         GROUP BY hour
@@ -382,17 +388,19 @@ export class Database {
     };
   }
 
-  /** Daily aggregated trends between two YYYY-MM-DD date strings. */
+  /** Daily aggregated trends between two YYYY-MM-DD date strings (local dates). */
   getTrends(startDate: string, endDate: string): TrendEntry[] {
     if (!this.db || this.inMemoryMode) return [];
 
-    const startMs = new Date(startDate).getTime();
-    const endMs = new Date(endDate).getTime() + 86_400_000;
+    // Parse date strings as LOCAL midnight so the range matches what the user sees
+    const startMs = this.localMidnightMs(startDate);
+    const endMs = this.localMidnightMs(endDate) + 86_400_000;
+    const tz = this.tzOffsetMs();
 
     const rows = this.db
       .prepare(`
         SELECT
-          strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch') AS date,
+          strftime('%Y-%m-%d', (timestamp - ${tz}) / 1000, 'unixepoch') AS date,
           SUM(CASE WHEN classification = 'human'        THEN 1 ELSE 0 END) AS human,
           SUM(CASE WHEN classification = 'ai_generated' THEN 1 ELSE 0 END) AS ai_gen,
           SUM(CASE WHEN classification = 'ai_modified'  THEN 1 ELSE 0 END) AS ai_mod,
@@ -535,13 +543,15 @@ export class Database {
   getDailySummary(date: string): import('../utils/types').DailySummary | null {
     if (!this.db || this.inMemoryMode) return null;
 
-    const startMs = new Date(date).getTime();
+    // Use local midnight so the day boundary matches the user's clock
+    const startMs = this.localMidnightMs(date);
     const endMs = startMs + 86_400_000;
+    const tz = this.tzOffsetMs();
 
     const row = this.db
       .prepare(`
         SELECT
-          strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch') AS date,
+          strftime('%Y-%m-%d', (timestamp - ${tz}) / 1000, 'unixepoch') AS date,
           SUM(CASE WHEN classification = 'human'        THEN 1 ELSE 0 END) AS human,
           SUM(CASE WHEN classification = 'ai_generated' THEN 1 ELSE 0 END) AS ai_gen,
           SUM(CASE WHEN classification = 'ai_modified'  THEN 1 ELSE 0 END) AS ai_mod,
@@ -628,7 +638,35 @@ export class Database {
 
   private todayStartMs(): number {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0); // local midnight
     return d.getTime();
+  }
+
+  /**
+   * Returns the local timezone offset in milliseconds.
+   *
+   * `Date.getTimezoneOffset()` returns `(UTC − local)` in minutes, so it is
+   * negative for UTC+N zones.  Subtracting this from a UTC timestamp converts
+   * it to local time.  Example: UTC+5:30 → −330 min → −19 800 000 ms.
+   *
+   * Usage in SQL: `(timestamp - ${tz}) / 1000` gives a UNIX epoch in local time
+   * that `strftime` and integer-division hour/day arithmetic treat correctly.
+   */
+  private tzOffsetMs(): number {
+    return new Date().getTimezoneOffset() * 60_000;
+  }
+
+  /**
+   * Parse a "YYYY-MM-DD" string as LOCAL midnight (not UTC midnight).
+   *
+   * `new Date('2026-01-01')` is an ISO-8601 date-only string and is parsed as
+   * UTC midnight per spec.  `new Date(y, m-1, d)` uses the LOCAL timezone.
+   */
+  private localMidnightMs(dateStr: string): number {
+    const parts = dateStr.split('-');
+    const y = parseInt(parts[0]!, 10);
+    const m = parseInt(parts[1]!, 10) - 1; // 0-indexed month
+    const d = parseInt(parts[2]!, 10);
+    return new Date(y, m, d).getTime(); // local midnight
   }
 }

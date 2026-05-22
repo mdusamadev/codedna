@@ -9,3 +9,10 @@ webview-ui/node_modules/
 *.db-shm
 coverage/
 .DS_Store
+CLAUDE.md
+PROMPTS_AND_TEST_CASES.md
+PERFORMANCE.md
+*.vsix
+.claude/
+.cursor/
+.vscode/

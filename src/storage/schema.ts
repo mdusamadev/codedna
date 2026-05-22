@@ -1,6 +1,6 @@
 /** Database schema definitions and migration runner. */
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** SQL for each migration version (run sequentially) */
 export const MIGRATIONS: Record<number, string> = {
@@ -51,6 +51,14 @@ export const MIGRATIONS: Record<number, string> = {
     );
 
     INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '1');
+  `,
+
+  // v2: add meaningful_chars_added column to edit_events.
+  // DEFAULT 0 keeps historical rows readable; the column is backfilled with 0
+  // (existing events predating this field) and populated correctly going forward.
+  2: `
+    ALTER TABLE edit_events ADD COLUMN meaningful_chars_added INTEGER NOT NULL DEFAULT 0;
+    INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '2');
   `,
 };
 

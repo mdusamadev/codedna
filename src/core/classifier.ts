@@ -135,9 +135,24 @@ export class Classifier {
 
     const { lineEnd } = normalizeLineSpan(event);
 
-    // Update line provenance map.
-    // Human edits on ai_generated OR ai_modified lines promote to / preserve ai_modified.
+    // Build a fast lookup for which line offsets have non-whitespace content.
+    // When nonEmptyLineOffsets is provided, only those offsets get provenance.
+    // This prevents blank / whitespace-only lines from being marked ai_generated,
+    // which would cause false ai_modified labels when a human later types on them.
+    //
+    // When the field is absent (legacy events or tests), treat every line as
+    // having content so behaviour is unchanged.
+    const contentSet: Set<number> | null = event.nonEmptyLineOffsets !== null && event.nonEmptyLineOffsets !== undefined
+      ? new Set(event.nonEmptyLineOffsets)
+      : null;
+
     for (let line = event.lineStart; line <= lineEnd; line++) {
+      const offset = line - event.lineStart;
+      if (contentSet !== null && !contentSet.has(offset)) {
+        // Empty / whitespace-only line — leave it untracked.
+        continue;
+      }
+
       const existingCls = this.getLineClass(event.filePath, line)?.classification;
       if (classification === 'human' && (existingCls === 'ai_generated' || existingCls === 'ai_modified')) {
         this.setLineClass(event.filePath, line, 'ai_modified', CONFIDENCE.AI_MODIFIED);

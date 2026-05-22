@@ -96,7 +96,10 @@ export class WebviewProvider implements vscode.Disposable {
         const rangeDays = msg.range === '7d' ? 7 : msg.range === '30d' ? 30 : 90;
         const end = new Date();
         const start = new Date(Date.now() - rangeDays * 86_400_000);
-        const fmt = (d: Date): string => d.toISOString().slice(0, 10);
+        // Use local date parts — toISOString() returns UTC, which shifts the
+        // day boundary for users in non-UTC zones.
+        const fmt = (d: Date): string =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         this.writeBuffer.flush();
         const data = this.db.getTrends(fmt(start), fmt(end));
         void this.panel?.webview.postMessage({ type: 'update-trends', data });

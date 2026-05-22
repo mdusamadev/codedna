@@ -2,8 +2,8 @@
   "name": "codedna",
   "displayName": "CodeDNA",
   "description": "See the DNA of your codebase — what's human, what's AI. Real-time AI code provenance tracking for VS Code & Cursor.",
-  "version": "0.1.0",
-  "publisher": "codedna",
+  "version": "0.1.1",
+  "publisher": "mdusama",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -29,7 +29,7 @@
   "icon": "assets/icon.png",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/codedna/codedna.git"
+    "url": "git+https://github.com/mdusaama0/codedna.git"
   },
   "contributes": {
     "commands": [
@@ -194,7 +194,7 @@
   },
   "author": "mdusama",
   "bugs": {
-    "url": "https://github.com/codedna/codedna/issues"
+    "url": "https://github.com/mdusaama0/codedna/issues"
   },
-  "homepage": "https://github.com/codedna/codedna#readme"
+  "homepage": "https://github.com/mdusaama0/codedna#readme"
 }

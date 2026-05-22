@@ -44,7 +44,10 @@ export class StatusBar implements vscode.Disposable {
 
   /** Record a classified event for ratio calculation */
   recordEvent(event: ClassifiedEditEvent): void {
-    const chars = event.charsAdded;
+    // Use meaningfulCharsAdded so whitespace, comment-only, and bracket-only
+    // edits don't skew the human/AI ratio.  Falls back to charsAdded for
+    // events that pre-date this field (e.g. loaded from the DB).
+    const chars = event.meaningfulCharsAdded ?? event.charsAdded;
     if (chars === 0) return;
 
     switch (event.classification) {
