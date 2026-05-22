@@ -1,0 +1,456 @@
+/* ── Reset & Base ──────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-background);
+  line-height: 1.5;
+}
+
+/* ── App layout ────────────────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--vscode-input-border);
+  background: var(--vscode-editor-background);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+}
+
+.app-icon {
+  font-size: 16px;
+}
+
+.app-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ── Tab bar ───────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+}
+
+.tab-button {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  opacity: 0.7;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+.tab-button:hover {
+  opacity: 1;
+  border-color: var(--vscode-input-border);
+}
+
+.tab-button--active {
+  opacity: 1;
+  border-color: var(--vscode-button-background, #0078d4);
+  color: var(--vscode-button-background, #0078d4);
+}
+
+/* ── Sections ──────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.section-meta {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.subsection-meta {
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+/* ── Stat cards ────────────────────────────────────────────────────── */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.stat-card {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.stat-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card__label {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 4px;
+}
+
+/* ── Pie chart ─────────────────────────────────────────────────────── */
+.pie-container {
+  width: 100%;
+}
+
+/* ── Chart title ───────────────────────────────────────────────────── */
+.chart-title {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.chart-container {
+  width: 100%;
+}
+
+/* ── Insight card ──────────────────────────────────────────────────── */
+.insight-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.insight-icon {
+  font-size: 16px;
+}
+
+/* ── File table ────────────────────────────────────────────────────── */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.file-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-input-border);
+  opacity: 0.6;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.file-table__col-file {
+  width: 55%;
+}
+
+.file-table__col-pct {
+  width: 15%;
+}
+
+.file-table__col-lines {
+  width: 15%;
+}
+
+.file-table__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.file-table__cell {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.file-table__cell--path {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  opacity: 0.85;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-table__cell--pct {
+  font-weight: 600;
+}
+
+.file-table__cell--lines {
+  opacity: 0.6;
+}
+
+/* ── Range selector ────────────────────────────────────────────────── */
+.range-selector {
+  display: flex;
+  gap: 2px;
+}
+
+.range-button {
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  opacity: 0.65;
+  transition: opacity 0.15s;
+}
+
+.range-button:hover {
+  opacity: 1;
+}
+
+.range-button--active {
+  opacity: 1;
+  background: var(--vscode-button-background, #0078d4);
+  border-color: var(--vscode-button-background, #0078d4);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+/* ── Week cards ────────────────────────────────────────────────────── */
+.week-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.week-card {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+}
+
+.week-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.week-card__stats {
+  display: flex;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.week-card__meta {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-top: 4px;
+}
+
+/* ── File list ─────────────────────────────────────────────────────── */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file-list__item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--vscode-editor-foreground);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.file-list__item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--vscode-button-background, #0078d4);
+}
+
+.file-list__item--selected {
+  border-color: var(--vscode-button-background, #0078d4);
+  background: rgba(0, 120, 212, 0.08);
+}
+
+.file-list__path {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.file-list__stats {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.file-list__lines {
+  margin-left: auto;
+  opacity: 0.5;
+  font-weight: 400;
+}
+
+.file-list__bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  display: flex;
+  overflow: hidden;
+}
+
+.file-list__bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.file-list__bar-fill--human {
+  background: #4ADE80;
+}
+
+.file-list__bar-fill--ai {
+  background: #60A5FA;
+}
+
+/* ── Line provenance ───────────────────────────────────────────────── */
+.file-detail__path {
+  font-family: var(--vscode-editor-font-family, monospace);
+  word-break: break-all;
+  margin-bottom: 10px;
+}
+
+.line-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.line-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.line-group__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.line-group__range {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  opacity: 0.8;
+  min-width: 100px;
+}
+
+.line-group__label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ── Empty states ──────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  gap: 12px;
+  opacity: 0.7;
+}
+
+.empty-state__icon {
+  font-size: 40px;
+}
+
+.empty-state__text {
+  font-size: 13px;
+  text-align: center;
+  max-width: 280px;
+}
+
+/* ── Misc ──────────────────────────────────────────────────────────── */
+.loading-msg,
+.no-lines-msg {
+  font-size: 12px;
+  opacity: 0.55;
+  padding: 8px 0;
+}
+
+/* ── Views ─────────────────────────────────────────────────────────── */
+.today-view,
+.trends-view,
+.file-view {
+  max-width: 720px;
+  margin: 0 auto;
+}

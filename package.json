@@ -1,0 +1,200 @@
+{
+  "name": "codedna",
+  "displayName": "CodeDNA",
+  "description": "See the DNA of your codebase — what's human, what's AI. Real-time AI code provenance tracking for VS Code & Cursor.",
+  "version": "0.1.0",
+  "publisher": "codedna",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "ai",
+    "provenance",
+    "claude",
+    "cursor",
+    "copilot",
+    "analytics",
+    "tracking",
+    "code-attribution"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codedna/codedna.git"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "codedna.openDashboard",
+        "title": "CodeDNA: Open Dashboard",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "codedna.toggleGutter",
+        "title": "CodeDNA: Toggle Line Provenance"
+      },
+      {
+        "command": "codedna.exportData",
+        "title": "CodeDNA: Export Data as JSON"
+      },
+      {
+        "command": "codedna.resetData",
+        "title": "CodeDNA: Reset All Data"
+      },
+      {
+        "command": "codedna.showDiagnostics",
+        "title": "CodeDNA: Show Diagnostics"
+      },
+      {
+        "command": "codedna.installGitHook",
+        "title": "CodeDNA: Install Git Commit Hook"
+      },
+      {
+        "command": "codedna.uninstallGitHook",
+        "title": "CodeDNA: Uninstall Git Commit Hook"
+      },
+      {
+        "command": "codedna.sendFeedback",
+        "title": "CodeDNA: Send Feedback"
+      }
+    ],
+    "configuration": {
+      "title": "CodeDNA",
+      "properties": {
+        "codedna.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Master toggle for all CodeDNA tracking."
+        },
+        "codedna.statusBar.visible": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the human/AI ratio indicator in the status bar."
+        },
+        "codedna.statusBar.mode": {
+          "type": "string",
+          "default": "session",
+          "enum": [
+            "session",
+            "daily"
+          ],
+          "enumDescriptions": [
+            "Show ratio for the current editing session",
+            "Show cumulative ratio for today"
+          ],
+          "description": "What time range the status bar indicator displays."
+        },
+        "codedna.gutter.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show line-level provenance colors in the editor gutter by default."
+        },
+        "codedna.git.commitSummary": {
+          "type": "boolean",
+          "default": false,
+          "description": "Append a CodeDNA provenance summary to git commit messages. Opt-in only."
+        },
+        "codedna.retention.days": {
+          "type": "number",
+          "default": 90,
+          "minimum": 7,
+          "maximum": 365,
+          "description": "Number of days to retain edit event data. Older data is automatically pruned."
+        },
+        "codedna.classification.keystrokeWindowMs": {
+          "type": "number",
+          "default": 200,
+          "minimum": 50,
+          "maximum": 1000,
+          "description": "Time window (ms) to correlate keyboard events with text changes. Lower = stricter human detection."
+        },
+        "codedna.classification.batchThreshold": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Minimum number of lines in a single edit to be classified as an AI batch insertion."
+        },
+        "codedna.excludePaths": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/*.lock",
+            "**/package-lock.json",
+            "**/pnpm-lock.yaml"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns for files and folders to exclude from tracking."
+        },
+        "codedna.weeklySummary": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a weekly summary notification with your coding patterns."
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codedna.toggleGutter",
+          "group": "codedna",
+          "when": "editorTextFocus"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "build:webview": "cd webview-ui && npm run build",
+    "lint": "eslint src/ --ext .ts,.tsx",
+    "lint:fix": "eslint src/ --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vscode-test",
+    "package": "npm run build && npm run build:webview && vsce package",
+    "prepackage": "npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.11.0",
+    "@types/sql.js": "^1.4.11",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "sql.js": "^1.14.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "author": "mdusama",
+  "bugs": {
+    "url": "https://github.com/codedna/codedna/issues"
+  },
+  "homepage": "https://github.com/codedna/codedna#readme"
+}

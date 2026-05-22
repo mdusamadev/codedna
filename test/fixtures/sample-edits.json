@@ -1,0 +1,216 @@
+[
+  {
+    "id": "TC-C01",
+    "description": "Single character typed with keyboard event within 200ms",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 10,
+      "lineEnd": 10,
+      "charsAdded": 1,
+      "charsRemoved": 0,
+      "linesAdded": 0,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 850,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "human",
+      "minConfidence": 0.9
+    }
+  },
+  {
+    "id": "TC-C02",
+    "description": "Word typed (5 chars) with keyboard event within 200ms → human (threshold is ≤5)",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 5,
+      "lineEnd": 5,
+      "charsAdded": 5,
+      "charsRemoved": 0,
+      "linesAdded": 0,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 900,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "human",
+      "minConfidence": 0.9
+    }
+  },
+  {
+    "id": "TC-C03",
+    "description": "Large insertion (15 lines) with no keyboard event",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 5,
+      "lineEnd": 5,
+      "charsAdded": 450,
+      "charsRemoved": 0,
+      "linesAdded": 15,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 0,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "ai_generated",
+      "minConfidence": 0.85
+    }
+  },
+  {
+    "id": "TC-C04",
+    "description": "Large insertion with Claude process active",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/auth.ts",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "charsAdded": 200,
+      "charsRemoved": 0,
+      "linesAdded": 8,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 0,
+      "aiProcessActive": true,
+      "aiProcessName": "claude"
+    },
+    "expected": {
+      "classification": "ai_generated",
+      "minConfidence": 0.8,
+      "sourceHint": "claude"
+    }
+  },
+  {
+    "id": "TC-C05",
+    "description": "Medium insertion (3 lines) with no keyboard event — at exact batch threshold",
+    "input": {
+      "timestamp": 3000,
+      "filePath": "src/index.ts",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "charsAdded": 80,
+      "charsRemoved": 0,
+      "linesAdded": 3,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 0,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "ai_generated",
+      "minConfidence": 0.85
+    }
+  },
+  {
+    "id": "TC-C06",
+    "description": "Medium insertion below batch threshold",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/utils.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "charsAdded": 60,
+      "charsRemoved": 0,
+      "linesAdded": 2,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 0,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "ambiguous",
+      "minConfidence": 0.4
+    }
+  },
+  {
+    "id": "TC-C07",
+    "description": "Copy-paste detected (large insert with Cmd+V keystroke)",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "charsAdded": 200,
+      "charsRemoved": 0,
+      "linesAdded": 10,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 950,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": {
+      "classification": "ambiguous",
+      "minConfidence": 0.5
+    }
+  },
+  {
+    "id": "TC-C11",
+    "description": "AI process active but human is typing (keystroke wins)",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 5,
+      "lineEnd": 5,
+      "charsAdded": 2,
+      "charsRemoved": 0,
+      "linesAdded": 0,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 950,
+      "aiProcessActive": true,
+      "aiProcessName": "claude"
+    },
+    "expected": {
+      "classification": "human",
+      "minConfidence": 0.9
+    }
+  },
+  {
+    "id": "TC-C15",
+    "description": "Empty event — should return null",
+    "input": {
+      "timestamp": 1000,
+      "filePath": "src/index.ts",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "charsAdded": 0,
+      "charsRemoved": 0,
+      "linesAdded": 0,
+      "language": "typescript",
+      "isFromDisk": false
+    },
+    "context": {
+      "lastKeystrokeTimestamp": 900,
+      "aiProcessActive": false,
+      "aiProcessName": "unknown"
+    },
+    "expected": null
+  }
+]
