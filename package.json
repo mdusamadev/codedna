@@ -2,7 +2,7 @@
   "name": "codedna",
   "displayName": "CodeDNA",
   "description": "See the DNA of your codebase — what's human, what's AI. Real-time AI code provenance tracking for VS Code & Cursor.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "mdusama",
   "license": "MIT",
   "engines": {
@@ -117,12 +117,34 @@
           "maximum": 1000,
           "description": "Time window (ms) to correlate keyboard events with text changes. Lower = stricter human detection."
         },
+        "codedna.classification.completionWindowMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 50,
+          "maximum": 2000,
+          "description": "Time window (ms) to correlate IDE completion/snippet accept commands with the following text change. Increase for slow language servers (e.g. Dart/Flutter)."
+        },
         "codedna.classification.batchThreshold": {
           "type": "number",
           "default": 3,
           "minimum": 1,
           "maximum": 20,
           "description": "Minimum number of lines in a single edit to be classified as an AI batch insertion."
+        },
+        "codedna.classification.tabCompletionMode": {
+          "type": "string",
+          "default": "ai_generated",
+          "enum": [
+            "ai_generated",
+            "human",
+            "ambiguous"
+          ],
+          "enumDescriptions": [
+            "Classify AI inline (ghost text) completions as AI-generated code",
+            "Classify AI inline completions as human code (you accepted it, it's yours)",
+            "Classify AI inline completions as ambiguous (most conservative)"
+          ],
+          "description": "How to classify code inserted by accepting an AI inline suggestion (Copilot/Cursor ghost text). IDE snippets and intellisense completions are always classified as human regardless of this setting."
         },
         "codedna.excludePaths": {
           "type": "array",

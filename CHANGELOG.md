@@ -15,3 +15,13 @@
 - Export and Reset commands
 - Git commit hook integration (opt-in)
 - Weekly summary notifications (opt-in)
+
+## [0.1.3] - 2026-05-23
+
+### Fixed
+- IDE snippets and intellisense (Emmet, auto-imports) now correctly classified as human
+- Keystroke tracking gracefully falls back when 'type' command is unavailable
+
+### Improved
+- Accurate distinction between IDE snippets and AI inline completions
+- Better error handling during extension startup

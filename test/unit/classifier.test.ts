@@ -2,22 +2,25 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Classifier } from '../../src/core/classifier';
 import { Settings } from '../../src/config/settings';
 import sampleEdits from '../fixtures/sample-edits.json';
-import type { RawEditEvent, SourceHint } from '../../src/utils/types';
+import type { CompletionEvent, RawEditEvent, SourceHint } from '../../src/utils/types';
 
 describe('Classifier', () => {
   let classifier: Classifier;
   let lastKeystrokeTs: number;
   let aiActive: boolean;
   let aiProcess: SourceHint;
+  let lastCompletion: CompletionEvent;
 
   beforeEach(() => {
     lastKeystrokeTs = 0;
     aiActive = false;
     aiProcess = 'unknown';
+    lastCompletion = { source: 'none', timestamp: 0 };
 
     const settings = new Settings();
     classifier = new Classifier(settings, {
       getLastKeystrokeTimestamp: () => lastKeystrokeTs,
+      getLastCompletionEvent: () => lastCompletion,
       isAIProcessActive: () => aiActive,
       getActiveAIProcess: () => aiProcess,
       sessionId: 'test-session',
@@ -397,11 +400,7 @@ describe('Classifier', () => {
     expect(result!.confidence).toBe(0.5);
   });
 
-  it('TC-C19: Snippet expansion (large insert with tab keystroke) → ambiguous (0.60, copy-paste branch)', () => {
-    // Tab key fires before the expansion → hasKeystrokeCorrelation=true (50ms)
-    // charsAdded=150 > 20, step 4 fires → ambiguous (COPY_PASTE=0.60)
-    // NOTE: Spec says 0.55 (SNIPPET confidence) but copy-paste and snippet are
-    // indistinguishable without actual text content. Step 4 gives 0.60 for both.
+  it('TC-C19: Snippet expansion (large insert with tab keystroke) → human (prefix replacement)', () => {
     lastKeystrokeTs = 950;
     aiActive = false;
     const event: RawEditEvent = {
@@ -417,8 +416,129 @@ describe('Classifier', () => {
     };
     const result = classifier.classify(event);
     expect(result).not.toBeNull();
-    expect(result!.classification).toBe('ambiguous');
-    expect(result!.confidence).toBeGreaterThanOrEqual(0.55); // spec floor; actual is 0.60
+    expect(result!.classification).toBe('human');
+    expect(result!.confidence).toBeCloseTo(0.97, 2);
+  });
+
+  it('completion correlation: acceptSelectedSuggestion within window → human', () => {
+    lastCompletion = { source: 'snippet', timestamp: 900 };
+    const result = classifier.classify({
+      timestamp: 1000,
+      filePath: 'src/snippet.ts',
+      lineStart: 0,
+      lineEnd: 10,
+      charsAdded: 200,
+      charsRemoved: 0,
+      linesAdded: 10,
+      language: 'dart',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('human');
+    expect(result?.confidence).toBeCloseTo(0.97, 2);
+  });
+
+  it('completion correlation: ai_inline within window → tabCompletionMode', () => {
+    lastCompletion = { source: 'ai_inline', timestamp: 950 };
+    const result = classifier.classify({
+      timestamp: 1000,
+      filePath: 'src/ai.ts',
+      lineStart: 0,
+      lineEnd: 2,
+      charsAdded: 50,
+      charsRemoved: 0,
+      linesAdded: 2,
+      language: 'typescript',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('ai_generated');
+  });
+
+  it('snippet placeholders in insert → human without completion command', () => {
+    const result = classifier.classify({
+      timestamp: 1000,
+      filePath: 'src/stl.dart',
+      lineStart: 0,
+      lineEnd: 8,
+      charsAdded: 120,
+      charsRemoved: 0,
+      linesAdded: 8,
+      language: 'dart',
+      isFromDisk: false,
+      hasSnippetPlaceholders: true,
+    });
+    expect(result?.classification).toBe('human');
+    expect(result?.confidence).toBeCloseTo(0.97, 2);
+  });
+
+  it('large paste with keystroke and no prefix removal → ambiguous', () => {
+    lastKeystrokeTs = 980;
+    const result = classifier.classify({
+      timestamp: 1000,
+      filePath: 'src/paste.ts',
+      lineStart: 0,
+      lineEnd: 5,
+      charsAdded: 80,
+      charsRemoved: 0,
+      linesAdded: 5,
+      language: 'typescript',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('ambiguous');
+    expect(result?.confidence).toBeCloseTo(0.6, 2);
+  });
+
+  it('batch insert without keystroke or completion → ai_generated', () => {
+    lastKeystrokeTs = 0;
+    aiActive = false;
+    const result = classifier.classify({
+      timestamp: 5000,
+      filePath: 'src/batch.ts',
+      lineStart: 0,
+      lineEnd: 5,
+      charsAdded: 100,
+      charsRemoved: 0,
+      linesAdded: 5,
+      language: 'typescript',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('ai_generated');
+  });
+
+  it('Flutter stf+Enter: batch insert replacing short prefix while claude runs → human', () => {
+    lastKeystrokeTs = 0;
+    aiActive = true;
+    aiProcess = 'claude';
+    const result = classifier.classify({
+      timestamp: 10_000,
+      filePath: 'lib/main.dart',
+      lineStart: 235,
+      lineEnd: 260,
+      charsAdded: 400,
+      charsRemoved: 3,
+      linesAdded: 25,
+      language: 'dart',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('human');
+    expect(result?.confidence).toBeCloseTo(0.97, 2);
+  });
+
+  it('Flutter stf+Enter: paused typing then accept (0e), claude running, prefix removed → human', () => {
+    lastKeystrokeTs = 5000;
+    aiActive = true;
+    aiProcess = 'claude';
+    const result = classifier.classify({
+      timestamp: 8000,
+      filePath: 'lib/main.dart',
+      lineStart: 235,
+      lineEnd: 260,
+      charsAdded: 400,
+      charsRemoved: 3,
+      linesAdded: 25,
+      language: 'dart',
+      isFromDisk: false,
+    });
+    expect(result?.classification).toBe('human');
   });
 
   it('TC-C21: isFromDisk whole-file ingest with AI active → ai_generated', () => {

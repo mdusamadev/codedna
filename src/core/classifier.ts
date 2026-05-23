@@ -5,9 +5,11 @@ import type {
   RawEditEvent,
   ClassifiedEditEvent,
   Classification,
+  CompletionEvent,
   SourceHint,
 } from '../utils/types';
 import { normalizeLineSpan } from '../utils/edit-span';
+import { looksLikeIdeCompletion } from '../utils/ide-completion';
 
 interface LineClassification {
   readonly classification: Classification;
@@ -18,11 +20,16 @@ interface LineClassification {
 /**
  * Classifies edit events as human, AI-generated, AI-modified, or ambiguous.
  *
- * Decision tree:
- * 1. Keystroke correlation (within window + small edit) → human
- * 2. Batch insertion (multi-line, no keystroke) → ai_generated
- * 3. AI process active (no keystroke) → ai_generated
- * 4. Human edits AI line → ai_modified
+ * Decision tree (editor edits):
+ * 0. Completion command correlation (snippet / ai_inline)
+ * 0b. Snippet tab-stop placeholders in insert
+ * 0c. Prefix-triggered IDE completion (keystroke + chars removed + large insert)
+ * 0d. Prefix replacement without recent keystroke (Enter on suggest widget)
+ * 0e. Large insert soon after typing (paused before Enter; Cursor has no command API)
+ * 1. Keystroke correlation + small edit → human
+ * 2. Batch insertion without keystroke → ai_generated or auto-format ambiguous
+ * 3. AI process active + no keystroke → ai_generated
+ * 4. Large insert with keystroke → human (snippet) or ambiguous (paste)
  * 5. Fallback → ambiguous
  */
 export class Classifier {
@@ -34,6 +41,7 @@ export class Classifier {
   private readonly lineMapAccessOrder: string[] = [];
 
   private getLastKeystrokeTimestamp: () => number;
+  private getLastCompletionEvent: () => CompletionEvent;
   private getAIProcessActive: () => boolean;
   private getAIProcessName: () => SourceHint;
   private sessionId: string;
@@ -45,6 +53,7 @@ export class Classifier {
     settings: Settings,
     deps: {
       getLastKeystrokeTimestamp: () => number;
+      getLastCompletionEvent: () => CompletionEvent;
       isAIProcessActive: () => boolean;
       getActiveAIProcess: () => SourceHint;
       sessionId: string;
@@ -52,6 +61,7 @@ export class Classifier {
   ) {
     this.settings = settings;
     this.getLastKeystrokeTimestamp = deps.getLastKeystrokeTimestamp;
+    this.getLastCompletionEvent = deps.getLastCompletionEvent;
     this.getAIProcessActive = deps.isAIProcessActive;
     this.getAIProcessName = deps.getActiveAIProcess;
     this.sessionId = deps.sessionId;
@@ -77,6 +87,13 @@ export class Classifier {
     const isSmallEdit = event.charsAdded <= 5;
     const isBatchInsert = event.linesAdded >= this.settings.batchThreshold;
     const aiProcessActive = this.getAIProcessActive();
+    const completion = this.getLastCompletionEvent();
+    const completionAgeMs = event.timestamp - completion.timestamp;
+    const completionInWindow =
+      completion.source !== 'none' && completionAgeMs <= this.settings.completionWindowMs;
+    const recentAiInline =
+      completion.source === 'ai_inline' && completionAgeMs <= this.settings.completionWindowMs;
+    const ideCompletion = looksLikeIdeCompletion(event, this.settings.batchThreshold);
 
     let classification: Classification;
     let confidence: number;
@@ -96,16 +113,59 @@ export class Classifier {
         confidence = CONFIDENCE.AMBIGUOUS;
       }
     }
+    // Step 0: Completion source correlation — highest-priority path for editor edits.
+    else if (completionInWindow && completion.source === 'snippet') {
+      classification = 'human';
+      confidence = CONFIDENCE.SNIPPET_COMPLETION;
+    } else if (completionInWindow && completion.source === 'ai_inline') {
+      classification = this.settings.tabCompletionMode;
+      confidence = CONFIDENCE.AI_INLINE_COMPLETION;
+      if (classification !== 'human') {
+        sourceHint = aiProcessActive ? this.getAIProcessName() : 'copilot';
+      }
+    }
+    // Step 0b: Snippet tab-stop placeholders (Emmet/snippets without command API).
+    else if (event.hasSnippetPlaceholders && !recentAiInline) {
+      classification = 'human';
+      confidence = CONFIDENCE.SNIPPET_COMPLETION;
+    }
+    // Step 0c: Prefix-triggered IDE completion (e.g. "stl" + Tab replacing typed prefix).
+    else if (
+      !recentAiInline &&
+      hasKeystrokeCorrelation &&
+      event.charsRemoved > 0 &&
+      (isBatchInsert || event.charsAdded > 20)
+    ) {
+      classification = 'human';
+      confidence = CONFIDENCE.SNIPPET_COMPLETION;
+    }
+    // Step 0d: Prefix replacement without recent keystroke (Enter on suggest widget often
+    // does not emit Keyboard selection-change; user typed "stf" then accepted later).
+    else if (!recentAiInline && ideCompletion) {
+      classification = 'human';
+      confidence = CONFIDENCE.SNIPPET_COMPLETION;
+    }
+    // Step 0e: Paused IDE accept after typing a prefix (merged edit still looks like completion).
+    else if (
+      !recentAiInline &&
+      ideCompletion &&
+      timeSinceKeystroke > this.settings.keystrokeWindowMs &&
+      timeSinceKeystroke <= DEFAULTS.IDE_COMPLETION_TYPING_WINDOW_MS
+    ) {
+      classification = 'human';
+      confidence = CONFIDENCE.SNIPPET_COMPLETION;
+    }
     // Step 1: Keystroke correlation + small edit → human
     else if (hasKeystrokeCorrelation && isSmallEdit) {
       classification = 'human';
       confidence = CONFIDENCE.HUMAN_KEYSTROKE;
     }
-    // Step 2: Batch insertion without keystroke.
-    // If the keystroke was recent but outside the normal window it may be an
-    // auto-format trigger (Shift+Alt+F) rather than AI — classify as ambiguous.
+    // Step 2: Batch insertion without keystroke (not IDE completion).
     else if (isBatchInsert && !hasKeystrokeCorrelation) {
-      if (timeSinceKeystroke < DEFAULTS.FORMAT_DETECTION_WINDOW_MS) {
+      if (!recentAiInline && ideCompletion) {
+        classification = 'human';
+        confidence = CONFIDENCE.SNIPPET_COMPLETION;
+      } else if (timeSinceKeystroke < DEFAULTS.FORMAT_DETECTION_WINDOW_MS) {
         classification = 'ambiguous';
         confidence = CONFIDENCE.AUTO_FORMAT;
       } else {
@@ -116,16 +176,21 @@ export class Classifier {
         }
       }
     }
-    // Step 3: AI process active + no keystroke → ai_generated
-    else if (aiProcessActive && !hasKeystrokeCorrelation) {
+    // Step 3: AI process active + no keystroke → ai_generated (editor batch from agent, not IDE)
+    else if (aiProcessActive && !hasKeystrokeCorrelation && !ideCompletion) {
       classification = 'ai_generated';
       confidence = CONFIDENCE.AI_PROCESS_ACTIVE;
       sourceHint = this.getAIProcessName();
     }
-    // Step 4: Large paste or snippet with keystroke (Cmd+V / Tab) → ambiguous
+    // Step 4: Large insert with keystroke — prefix replacement (human) vs paste (ambiguous)
     else if (hasKeystrokeCorrelation && event.charsAdded > 20) {
-      classification = 'ambiguous';
-      confidence = CONFIDENCE.COPY_PASTE;
+      if (event.charsRemoved > 0) {
+        classification = 'human';
+        confidence = CONFIDENCE.SNIPPET_COMPLETION;
+      } else {
+        classification = 'ambiguous';
+        confidence = CONFIDENCE.COPY_PASTE;
+      }
     }
     // Step 5: Fallback → ambiguous
     else {
@@ -135,21 +200,14 @@ export class Classifier {
 
     const { lineEnd } = normalizeLineSpan(event);
 
-    // Build a fast lookup for which line offsets have non-whitespace content.
-    // When nonEmptyLineOffsets is provided, only those offsets get provenance.
-    // This prevents blank / whitespace-only lines from being marked ai_generated,
-    // which would cause false ai_modified labels when a human later types on them.
-    //
-    // When the field is absent (legacy events or tests), treat every line as
-    // having content so behaviour is unchanged.
-    const contentSet: Set<number> | null = event.nonEmptyLineOffsets !== null && event.nonEmptyLineOffsets !== undefined
-      ? new Set(event.nonEmptyLineOffsets)
-      : null;
+    const contentSet: Set<number> | null =
+      event.nonEmptyLineOffsets !== null && event.nonEmptyLineOffsets !== undefined
+        ? new Set(event.nonEmptyLineOffsets)
+        : null;
 
     for (let line = event.lineStart; line <= lineEnd; line++) {
       const offset = line - event.lineStart;
       if (contentSet !== null && !contentSet.has(offset)) {
-        // Empty / whitespace-only line — leave it untracked.
         continue;
       }
 
@@ -170,7 +228,6 @@ export class Classifier {
       sourceHint,
     };
 
-    // Performance tracking
     const elapsed = performance.now() - start;
     if (elapsed > 20) {
       this.logger.perf('classify', elapsed);
@@ -236,7 +293,6 @@ export class Classifier {
       lastUpdated: Date.now(),
     });
 
-    // Update LRU order
     const idx = this.lineMapAccessOrder.indexOf(filePath);
     if (idx >= 0) {
       this.lineMapAccessOrder.splice(idx, 1);

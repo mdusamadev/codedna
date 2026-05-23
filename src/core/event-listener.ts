@@ -4,8 +4,7 @@ import { Settings } from '../config/settings';
 import { TRACKABLE_SCHEMES } from '../utils/constants';
 import { resolveTrackablePath, isExcludedPath } from '../utils/paths';
 import type { RawEditEvent } from '../utils/types';
-import { normalizeLineSpan } from '../utils/edit-span';
-import { analyzeInsertedText } from '../utils/text-analysis';
+import { mergeContentChanges } from '../utils/merge-document-changes';
 
 /**
  * Captures all text document changes and keyboard activity in the editor.
@@ -32,6 +31,14 @@ export class EventListener implements vscode.Disposable {
     return this.keystrokeTimestamps[this.keystrokeTimestamps.length - 1] ?? 0;
   }
 
+  /**
+   * Record explicit user intent (e.g. accepting an IntelliSense item via Enter).
+   * Used by CompletionTracker when onDidExecuteCommand fires for snippet accepts.
+   */
+  recordUserInteraction(): void {
+    this.recordKeystroke();
+  }
+
   dispose(): void {
     this.onEditEmitter.dispose();
     for (const d of this.disposables) {
@@ -41,11 +48,21 @@ export class EventListener implements vscode.Disposable {
 
   private registerListeners(): void {
     // ── Printable character input ─────────────────────────────────────────────
-    const typeCommand = vscode.commands.registerCommand('type', (args: { text: string }) => {
-      this.recordKeystroke();
-      return vscode.commands.executeCommand('default:type', args);
-    });
-    this.disposables.push(typeCommand);
+    // The 'type' command may already be registered in Cursor or another extension.
+    // Failure here must not prevent activation — selection-change and willSave
+    // events below provide sufficient keystroke-timing signal as a fallback.
+    try {
+      const typeCommand = vscode.commands.registerCommand('type', (args: { text: string }) => {
+        this.recordKeystroke();
+        return vscode.commands.executeCommand('default:type', args);
+      });
+      this.disposables.push(typeCommand);
+    } catch (err) {
+      this.logger.warn(
+        `'type' command already registered by host editor — keystroke tracking will rely on ` +
+          `selection-change and willSave events instead. Error: ${err}`,
+      );
+    }
 
     // ── Non-type user interactions that should reset the keystroke window ──────
     //
@@ -90,7 +107,7 @@ export class EventListener implements vscode.Disposable {
     });
     this.disposables.push(docChangeListener);
 
-    this.logger.info('Event listener registered (type + selection + willSave)');
+    this.logger.info('Event listener registered (selection + willSave; type command attempted separately)');
   }
 
   private recordKeystroke(): void {
@@ -117,39 +134,27 @@ export class EventListener implements vscode.Disposable {
       return;
     }
 
-    // Process each content change
-    for (const change of event.contentChanges) {
-      const linesAdded = change.text.split('\n').length - 1;
-      const lineStart = change.range.start.line;
-      const lineEnd = normalizeLineSpan({
-        lineStart,
-        lineEnd: change.range.end.line,
-        linesAdded,
-      }).lineEnd;
-
-      // Analyse the inserted text for content-quality metadata.
-      // This is the ONLY place raw text is inspected; no content is stored.
-      const { nonEmptyLineOffsets, meaningfulCharsAdded } = analyzeInsertedText(
-        change.text,
-        event.document.languageId,
-      );
-
-      const rawEvent: RawEditEvent = {
-        timestamp: Date.now(),
-        filePath,
-        lineStart,
-        lineEnd,
-        charsAdded: change.text.length,
-        charsRemoved: change.rangeLength,
-        linesAdded,
-        language: event.document.languageId,
-        isFromDisk: false,
-        nonEmptyLineOffsets,
-        meaningfulCharsAdded,
-      };
-
-      this.onEditEmitter.fire(rawEvent);
+    const merged = mergeContentChanges(event.contentChanges, event.document.languageId);
+    if (!merged) {
+      return;
     }
+
+    const rawEvent: RawEditEvent = {
+      timestamp: Date.now(),
+      filePath,
+      lineStart: merged.lineStart,
+      lineEnd: merged.lineEnd,
+      charsAdded: merged.charsAdded,
+      charsRemoved: merged.charsRemoved,
+      linesAdded: merged.linesAdded,
+      language: event.document.languageId,
+      isFromDisk: false,
+      nonEmptyLineOffsets: merged.nonEmptyLineOffsets,
+      meaningfulCharsAdded: merged.meaningfulCharsAdded,
+      hasSnippetPlaceholders: merged.hasSnippetPlaceholders,
+    };
+
+    this.onEditEmitter.fire(rawEvent);
   }
 
 }

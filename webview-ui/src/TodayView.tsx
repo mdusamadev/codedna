@@ -75,9 +75,9 @@ export default function TodayView({ data }: TodayViewProps): React.JSX.Element {
             color={PIE_COLORS.ai}
           />
           <StatCard
-            label="AI Review Rate"
-            value={`${data.aiReviewRate}%`}
-            color="#FBBF24"
+            label="Ambiguous"
+            value={`${data.ambiguousPercent}%`}
+            color={PIE_COLORS.ambiguous}
           />
         </div>
 

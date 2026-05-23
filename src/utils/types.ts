@@ -9,6 +9,17 @@ export type Classification = 'human' | 'ai_generated' | 'ai_modified' | 'ambiguo
 /** Known AI tool identifiers */
 export type SourceHint = 'claude' | 'cursor' | 'copilot' | 'aider' | 'unknown';
 
+/** Source of a completion event intercepted via command execution */
+export type CompletionSource = 'snippet' | 'ai_inline' | 'paste' | 'none';
+
+/** Most recently intercepted completion acceptance event */
+export interface CompletionEvent {
+  readonly source: CompletionSource;
+  readonly timestamp: number;
+  /** Command id (diagnostics only, not persisted). */
+  readonly command?: string;
+}
+
 /** Raw edit event before classification */
 export interface RawEditEvent {
   readonly timestamp: number;
@@ -37,6 +48,11 @@ export interface RawEditEvent {
    * If omitted, falls back to charsAdded for backward compatibility.
    */
   readonly meaningfulCharsAdded?: number;
+  /**
+   * True when inserted text contains VS Code snippet tab-stop markers ($1, ${1:...}).
+   * Computed at capture time and not stored in the database.
+   */
+  readonly hasSnippetPlaceholders?: boolean;
 }
 
 /** Classified edit event ready for storage */

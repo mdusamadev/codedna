@@ -8,6 +8,7 @@ import { EventListener } from './core/event-listener';
 import { FileIngestion } from './core/file-ingestion';
 import { FileWatcher } from './core/file-watcher';
 import { ProcessMonitor } from './core/process-monitor';
+import { CompletionTracker } from './core/completion-tracker';
 import { Classifier } from './core/classifier';
 import { StatusBar } from './ui/status-bar';
 import { GutterDecorations } from './ui/gutter-decorations';
@@ -33,6 +34,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const session = new SessionManager();
     const processMonitor = new ProcessMonitor();
     const eventListener = new EventListener(settings);
+    const completionTracker = new CompletionTracker({
+      onUserAccept: () => eventListener.recordUserInteraction(),
+    });
 
     // ── Storage ──
     const db = new Database();
@@ -52,6 +56,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // ── Classification ──
     const classifier = new Classifier(settings, {
       getLastKeystrokeTimestamp: (): number => eventListener.getLastKeystrokeTimestamp(),
+      getLastCompletionEvent: (): ReturnType<typeof completionTracker.getLastCompletionEvent> => completionTracker.getLastCompletionEvent(),
       isAIProcessActive: (): boolean => processMonitor.isAIProcessActive(),
       getActiveAIProcess: (): SourceHint => processMonitor.getActiveAIProcess(),
       sessionId: session.sessionId,
@@ -232,6 +237,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // ── Register disposables ──
     context.subscriptions.push(
       eventListener,
+      completionTracker,
       fileWatcher,
       fileIngestion,
       processMonitor,

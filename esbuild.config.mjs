@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 
 const isWatch = process.argv.includes("--watch");
+const isProduction = process.argv.includes("--production");
 
 /** @type {esbuild.BuildOptions} */
 const config = {
@@ -16,7 +17,7 @@ const config = {
   platform: "node",
   target: "node18",
   sourcemap: true,
-  minify: !isWatch,
+  minify: isProduction,
   treeShaking: true,
   logLevel: "info",
 };

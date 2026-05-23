@@ -25,6 +25,7 @@ export const SETTINGS = {
   GIT_COMMIT_SUMMARY: `${EXTENSION_ID}.git.commitSummary`,
   RETENTION_DAYS: `${EXTENSION_ID}.retention.days`,
   KEYSTROKE_WINDOW_MS: `${EXTENSION_ID}.classification.keystrokeWindowMs`,
+  COMPLETION_WINDOW_MS: `${EXTENSION_ID}.classification.completionWindowMs`,
   BATCH_THRESHOLD: `${EXTENSION_ID}.classification.batchThreshold`,
   EXCLUDE_PATHS: `${EXTENSION_ID}.excludePaths`,
   WEEKLY_SUMMARY: `${EXTENSION_ID}.weeklySummary`,
@@ -43,10 +44,26 @@ export const DEFAULTS = {
   LINE_MAP_MAX_FILES: 50,
   /** Batch inserts within this window after a keystroke are likely auto-format, not AI. */
   FORMAT_DETECTION_WINDOW_MS: 800,
+  /** Max age (ms) of a completion event to still influence classification. */
+  COMPLETION_WINDOW_MS: 300,
+  /**
+   * Max chars removed when treating a batch insert as IDE prefix completion
+   * (e.g. "stf" → StatefulWidget) without a recent keystroke on Enter accept.
+   */
+  MAX_PREFIX_REPLACEMENT_CHARS: 40,
+  /**
+   * After typing a prefix (e.g. "stf"), user may pause before Enter on the suggest widget.
+   * Batch inserts within this window of the last keystroke are treated as IDE completion.
+   */
+  IDE_COMPLETION_TYPING_WINDOW_MS: 10_000,
 } as const;
 
 /** Confidence scores */
 export const CONFIDENCE = {
+  /** Snippet/intellisense accept intercepted via acceptSelectedSuggestion command */
+  SNIPPET_COMPLETION: 0.97,
+  /** AI ghost text accept intercepted via editor.action.inlineSuggest.commit */
+  AI_INLINE_COMPLETION: 0.93,
   HUMAN_KEYSTROKE: 0.95,
   AI_BATCH_INSERT: 0.90,
   AI_PROCESS_ACTIVE: 0.85,

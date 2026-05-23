@@ -48,6 +48,16 @@ Run this checklist before every release. Test in both VS Code and Cursor.
 - [ ] Small word completions accepted via IntelliSense (≤4 chars) appear as `human`
 - [ ] Status bar human percentage increases after manual typing
 
+### IDE snippets and deterministic completions (human)
+
+- [ ] **Flutter/Dart**: type `stl` → Tab → StatelessWidget scaffold → `human` (not AI/ambiguous)
+- [ ] **TypeScript**: `for` snippet expansion → `human`
+- [ ] **HTML/Emmet**: `div.container` → Tab → expanded markup → `human`
+- [ ] **Python**: `def` function scaffold → `human`
+- [ ] Auto-import on accept (organize imports / quick fix) → `human`
+- [ ] **Copilot ghost text** Tab accept follows `codedna.classification.tabCompletionMode` (default `ai_generated`), not forced human
+- [ ] **Cmd+V** multi-line paste without prefix replacement → `ambiguous` (not human)
+
 ---
 
 ## 4. AI Edit Classification

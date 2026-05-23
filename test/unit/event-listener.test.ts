@@ -163,22 +163,21 @@ describe('EventListener', () => {
     expect(fired[0]!.charsAdded).toBe(3);
   });
 
-  it('TC-EL09: Multiple content changes in one event each fire a separate onEdit', () => {
+  it('TC-EL09: Multiple content changes in one event are merged into one onEdit', () => {
     const fired: RawEditEvent[] = [];
     listener.onEdit((e) => fired.push(e));
 
     docChangeHandler!(
       makeDocEvent('file', '/mock/workspace/src/multi.ts', [
-        { text: 'a', rangeLength: 0, rangeStart: 1, rangeEnd: 1 },
-        { text: 'b', rangeLength: 0, rangeStart: 2, rangeEnd: 2 },
-        { text: 'c', rangeLength: 0, rangeStart: 3, rangeEnd: 3 },
+        { text: '', rangeLength: 3, rangeStart: 10, rangeEnd: 10 },
+        { text: 'class Widget {}\n', rangeLength: 0, rangeStart: 10, rangeEnd: 10 },
       ]),
     );
 
-    expect(fired).toHaveLength(3);
-    expect(fired[0]!.lineStart).toBe(1);
-    expect(fired[1]!.lineStart).toBe(2);
-    expect(fired[2]!.lineStart).toBe(3);
+    expect(fired).toHaveLength(1);
+    expect(fired[0]!.charsRemoved).toBe(3);
+    expect(fired[0]!.charsAdded).toBeGreaterThan(5);
+    expect(fired[0]!.lineStart).toBe(10);
   });
 
   it('TC-EL10: Timestamp on each event is a positive epoch ms value', () => {

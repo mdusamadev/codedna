@@ -93,6 +93,7 @@ function buildPipeline(): Pipeline {
   const eventListener = new EventListener(settings);
   const classifier = new Classifier(settings, {
     getLastKeystrokeTimestamp: () => keystrokeTs,
+    getLastCompletionEvent: () => ({ source: 'none', timestamp: 0 }),
     isAIProcessActive: () => aiActive,
     getActiveAIProcess: () => aiProcessName,
     sessionId: 'e2e-session',

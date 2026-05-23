@@ -46,6 +46,28 @@ export class Settings {
     return this.clamp(value, 50, 1000);
   }
 
+  /** Completion-command correlation window in milliseconds */
+  get completionWindowMs(): number {
+    const value = this.get<number>(
+      'classification.completionWindowMs',
+      DEFAULTS.COMPLETION_WINDOW_MS,
+    );
+    return this.clamp(value, 50, 2000);
+  }
+
+  /**
+   * How to classify AI inline (ghost text) completions accepted via Tab.
+   * - 'ai_generated': treat as AI-written code (default)
+   * - 'human': treat as human-accepted code (user curated it)
+   * - 'ambiguous': conservative; mark as uncertain
+   */
+  get tabCompletionMode(): 'human' | 'ai_generated' | 'ambiguous' {
+    return this.get<'human' | 'ai_generated' | 'ambiguous'>(
+      'classification.tabCompletionMode',
+      'ai_generated',
+    );
+  }
+
   /** Minimum lines for batch insertion detection */
   get batchThreshold(): number {
     const value = this.get<number>('classification.batchThreshold', DEFAULTS.BATCH_THRESHOLD);
@@ -92,7 +114,9 @@ export class Settings {
       gitCommitSummary: this.gitCommitSummary,
       retentionDays: this.retentionDays,
       keystrokeWindowMs: this.keystrokeWindowMs,
+      completionWindowMs: this.completionWindowMs,
       batchThreshold: this.batchThreshold,
+      tabCompletionMode: this.tabCompletionMode,
       excludePaths: this.excludePaths,
       weeklySummary: this.weeklySummary,
     };

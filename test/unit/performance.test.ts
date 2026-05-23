@@ -74,6 +74,7 @@ describe('Performance Tests', () => {
     classifier = new Classifier(settings, {
       // always return a keystroke 50ms ago → all events classified as human
       getLastKeystrokeTimestamp: () => performance.now() - 50,
+      getLastCompletionEvent: () => ({ source: 'none', timestamp: 0 }),
       isAIProcessActive: () => false,
       getActiveAIProcess: () => 'unknown',
       sessionId: 'perf-session',
@@ -218,6 +219,7 @@ describe('Performance Tests', () => {
     const settings = new Settings();
     const cls = new Classifier(settings, {
       getLastKeystrokeTimestamp: () => 0,
+      getLastCompletionEvent: () => ({ source: 'none', timestamp: 0 }),
       isAIProcessActive: () => false,
       getActiveAIProcess: () => 'unknown',
       sessionId: 'init-test',
